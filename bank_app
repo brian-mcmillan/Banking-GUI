@@ -1,0 +1,292 @@
+import sqlite3
+from tkinter import *
+from datetime import datetime
+from PIL import Image, ImageTk
+
+
+# |-------------------------------------------------------------------------------------| #
+# |  This program replicates a bank account application.                                | #
+# |  It allows a user to create an account and login.                                   | #
+# |  Upon login, the user can view credentials and balance.                             | #
+# |  The user can also update the balance by either withdrawing or depositing.          | #
+# |  This is accomplished using a SQL database, to store user credentials.              | #
+# |  The application visuals are displayed to the user through the use of tkinter GUI.  | #
+# |-------------------------------------------------------------------------------------| #
+
+
+# connect to database: account_info
+con = sqlite3.connect("account_info.db")
+
+cur = con.cursor()
+
+# creates all_accounts table if it does not already exist.
+# username is denoted as the PRIMARY KEY
+cur.execute('''CREATE TABLE IF NOT EXISTS all_accounts(username text PRIMARY KEY, name text, password text, 
+            balance real, gender text, birthyear text)''')
+
+# sample insertion of user data
+cur.execute('''INSERT OR IGNORE INTO all_accounts VALUES
+            ('brianmickey', 'Brian McMillan', 'coding', '10,000', 'Male', '2000')''')
+
+# creates all_withdrawals and all_deposits if they do not already exist.
+cur.execute("""CREATE TABLE IF NOT EXISTS withdrawals(username text, withdrawn text, time text)""")
+cur.execute("""CREATE TABLE IF NOT EXISTS deposits(username text, deposits text, time text)""")
+
+
+con.commit()
+
+# Main Menu
+main_menu = Tk()
+main_menu.configure(bg='white')
+main_menu.title("Online Banking")
+logo = Image.open('sigma.png')
+logo = ImageTk.PhotoImage(logo)
+Label(main_menu, image=logo).grid(row=0,stick=N,pady=15)
+
+# Prints all_accounts to console. all_accounts can also be viewed in db browser.
+for row in cur.execute("SELECT * FROM all_accounts"):
+    print(row)
+
+def update_deposit():
+    global user_info
+
+    temp_deposit = deposit_amount.get()
+    deposit_time = datetime.now()
+
+    cur.execute(f"SELECT balance FROM all_accounts WHERE username = '{temp_username2}'")
+    balance_check = cur.fetchone()
+
+
+    cur.execute(f'''INSERT OR IGNORE INTO deposits VALUES('{temp_username2}','{temp_deposit}','{deposit_time}') ''')
+    con.commit()
+
+    cur.execute(f'''SELECT deposits FROM deposits WHERE username = '{temp_username2}' ''')
+    deposit_check = cur.fetchone()
+
+    updated_balance = balance_check[0] + temp_deposit
+    print(updated_balance)
+
+    cur.execute(f'''UPDATE all_accounts 
+                    SET balance = '{updated_balance}'
+                    WHERE username = '{temp_username2}' ''')
+    con.commit()
+
+    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 10").grid(row=3, sticky=W, pady=4, padx=5)
+
+
+
+
+
+def update_withdraw():
+    global user_info
+
+    temp_withdraw = withdraw_amount.get()
+    deposit_time = datetime.now()
+
+    cur.execute(f"SELECT balance FROM all_accounts WHERE username = '{temp_username2}'")
+    balance_check = cur.fetchone()
+
+    cur.execute(f'''INSERT OR IGNORE INTO deposits VALUES('{temp_username2}','{temp_withdraw}','{deposit_time}') ''')
+    con.commit()
+
+    cur.execute(f'''SELECT withdrawn FROM withdrawals WHERE username = '{temp_username2}' ''')
+    deposit_check = cur.fetchone()
+
+    updated_balance = balance_check[0] - temp_withdraw
+    print(updated_balance)
+
+    cur.execute(f'''UPDATE all_accounts 
+                    SET balance = '{updated_balance}'
+                    WHERE username = '{temp_username2}' ''')
+    con.commit()
+
+    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 10").grid(row=3, sticky=W, pady=4,
+                                                                                              padx=5)
+
+
+def withdraw():
+    global withdraw_amount
+    withdraw_amount = IntVar()
+    withdraw_menu = Toplevel(main_menu)
+
+
+
+    Label(withdraw_menu, text="Withdraw Funds", font="times 13").grid(row=1, stick=N, pady=0, padx=10)
+    Label(withdraw_menu, text="How much would you like to withdraw?", font='times 9').grid(row=2, stick=N, pady=5)
+    Entry(withdraw_menu, textvariable=withdraw_amount).grid(row=3, column=0, sticky=N)
+
+    Button(withdraw_menu, text="Confirm", command=update_withdraw, font="Times 12 bold").grid(row=5, sticky=SE)
+
+def deposit():
+    global deposit_amount
+    deposit_amount = IntVar()
+    deposit_menu = Toplevel(main_menu)
+
+    Label(deposit_menu, text="Deposit Funds", font="times 13").grid(row=1, stick=N, pady=0, padx=10)
+    Label(deposit_menu, text="How much would you like to deposit?", font='times 9').grid(row=2, stick=N, pady=5)
+    Entry(deposit_menu, textvariable=deposit_amount).grid(row=3, column=0, sticky=N)
+
+    Button(deposit_menu, text="Confirm", command=update_deposit, font="Times 12 bold").grid(row=5, sticky=SE)
+
+
+
+
+def user_account():
+    global balancecheck, display_bal, user_info
+    user_info = Toplevel(main_menu)
+    Label(user_info, text="Account Information", font="times 13").grid(row=1, stick=N, pady=0, padx=10)
+
+    # display name to user
+    cur.execute(f"SELECT name FROM all_accounts WHERE username = '{temp_username2}'")
+    namecheck = cur.fetchone()
+    if namecheck:
+        Label(user_info, text=f"Name: {namecheck[0]}", font="times 10").grid(row=2, sticky=W, pady=4, padx=5)
+    else:
+        print("error.")
+
+    # display balance to user
+    cur.execute(f"SELECT balance FROM all_accounts WHERE username = '{temp_username2}'")
+    balancecheck = cur.fetchone()
+    if balancecheck:
+        display_bal = Label(user_info, text=f"Balance: ${balancecheck[0]}", font="times 10").grid(row=3, sticky=W, pady=4, padx=5)
+    else:
+        print("error.")
+
+    # Buttons
+    # Withdraw
+    Button(user_info, text="Withdraw", command=withdraw, font="Times 12 bold").grid(row=5, sticky=SW)
+    # Deposit
+    Button(user_info, text="Deposit", command=deposit, font="Times 12 bold").grid(row=5, sticky=SE)
+
+
+
+def finish_login():
+    """Retrieves login information from login() and checks if login is successful or not."""
+
+    global temp_username2
+
+    temp_username2 = user_name2.get()
+    temp_password2 = password2.get()
+
+    # Checks if a username and password combo exists
+    check2 = f"SELECT username from all_accounts WHERE password='{temp_password2}' and username='{temp_username2}'"
+    cur.execute(check2)
+
+    # If it does, notify the user they have logged in successfully and bring them to the account info page
+    if cur.fetchall():
+        notif.config(fg="green", text="Login Successful")
+        user_account()
+    else:
+        # If it does not, notify the user they have entered something wrong
+        notif.config(fg="red", text="Wrong Username or Password")
+
+
+
+def finish_reg():
+    """Retrieves user information from register() and checks if registration fields have been filled out correctly."""
+
+    global temp_name
+
+    temp_name = user_name.get()
+    temp_username = user_username.get()
+    temp_password = user_password.get()
+    temp_age = user_age.get()
+    temp_gender = user_gender.get()
+
+    # checks if any fields are left blank and notifies the user
+    if temp_name == "" or temp_username == "" or temp_password == "" or temp_age == "" or temp_gender == "":
+        notif.config(fg="red", text="Fields required", font="times")
+
+    # checks if the entered username already exists
+    check = f"SELECT username from all_accounts WHERE username='{temp_username}'"
+    cur.execute(check)
+
+    # if it does, the user is notified
+    if cur.fetchone():
+        notif.config(fg="red", text="Username is taken")
+    else:
+        # if it does not, the user is notified that their account has been successfully created
+        notif.config(fg="green", text="Account Created")
+
+        # user info is inserted into database
+        cur.execute(f'''INSERT OR IGNORE INTO all_accounts VALUES
+        ('{temp_username}', '{temp_name}', '{temp_password}', '0', '{temp_gender}', '{temp_age}')''')
+
+        con.commit()
+
+
+def register():
+    """Allows a user to submit account information"""
+
+    global user_name, user_username, user_password
+    global user_age, user_gender, notif
+
+    user_name = StringVar()
+    user_username = StringVar()
+    user_password = StringVar()
+    user_age = StringVar()
+    user_gender = StringVar()
+
+    # Registration Menu
+    register_menu = Toplevel(main_menu)
+    register_menu.title("Register")
+
+    # Labels
+    Label(register_menu, text="Create your new account", font="times 13").grid(row=0, sticky=NW, pady=10, padx=30)
+    Label(register_menu, text="Name", font="times 9 ").grid(row=2, sticky=W)
+    Label(register_menu, text="Username", font="times 9").grid(row=3, sticky=W)
+    Label(register_menu, text="Password", font="times 9 ").grid(row=4, sticky=W)
+    Label(register_menu, text="Age", font="times 9").grid(row=5, sticky=W)
+    Label(register_menu, text="Gender", font="times 9").grid(row=6, sticky=W)
+    notif = Label(register_menu, font="times 12")
+    notif.grid(row=9, sticky=N, pady=10)
+
+    # Entries
+    Entry(register_menu, textvariable=user_name).grid(row=2, column=0, sticky=N)
+    Entry(register_menu, textvariable=user_username).grid(row=3, column=0, sticky=N)
+    Entry(register_menu, textvariable=user_password, show="*").grid(row=4, column=0, sticky=N)
+    Entry(register_menu, textvariable=user_age).grid(row=5, column=0, sticky=N)
+    Entry(register_menu, textvariable=user_gender).grid(row=6, column=0, sticky=N)
+
+    # Buttons
+    Button(register_menu, text="Register", command=finish_reg, font="Times 12 bold").grid(row=8, sticky=N)
+
+
+def login():
+    global user_name2, password2, notif, login_menu, login_button
+    user_name2 = StringVar()
+    password2 = StringVar()
+
+    # Login Menu
+    login_menu = Toplevel(main_menu)
+    login_menu.title("Login")
+
+    # Labels
+    Label(login_menu, text="Login to your account", font="Times 13").grid(row=0, sticky=NW, pady=10, padx=30)
+    Label(login_menu, text="Username", font="times 9").grid(row=3, sticky=W)
+    Label(login_menu, text="Password", font="times 9 ").grid(row=4, sticky=W)
+    notif = Label(login_menu, font="times 12")
+    notif.grid(row=9, sticky=N, pady=10)
+
+    # Entries
+    Entry(login_menu, textvariable=user_name2).grid(row=3, column=0, sticky=N)
+    Entry(login_menu, textvariable=password2, show="*").grid(row=4, column=0, sticky=N)
+
+    # Button
+    login_button = Button(login_menu, text="Login", command=finish_login, font="Times 12 bold").grid(row=8, sticky=N)
+
+
+# Screen widths for formatting
+# print(main_menu.winfo_screenwidth())
+# print(main_menu.winfo_screenwidth())
+
+
+# Main Menu Buttons
+create_account_button = Button(main_menu, text="Create Account", font=("Times 10"), activeforeground="royal blue",
+                               width=20, command=register).grid(row=1, sticky=N, pady=10)
+
+login_button = Button(main_menu, text="Login", font=("Times 10 "), command=login, width=20).grid(row=2, sticky=N,
+                                                                                                 pady=10)
+
+main_menu.mainloop()
+con.close()
