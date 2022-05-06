@@ -1,7 +1,6 @@
 import sqlite3
 from tkinter import *
 from datetime import datetime
-from PIL import Image, ImageTk
 
 
 # |-------------------------------------------------------------------------------------| #
@@ -26,29 +25,29 @@ cur.execute('''CREATE TABLE IF NOT EXISTS all_accounts(username text PRIMARY KEY
 
 # sample insertion of user data
 cur.execute('''INSERT OR IGNORE INTO all_accounts VALUES
-            ('brianmickey', 'Brian McMillan', 'coding', '10,000', 'Male', '2000')''')
+            ('brianmickey', 'Brian McMillan', 'coding', '10000', 'Male', '2000')''')
 
 # creates all_withdrawals and all_deposits if they do not already exist.
 cur.execute("""CREATE TABLE IF NOT EXISTS withdrawals(username text, withdrawn text, time text)""")
 cur.execute("""CREATE TABLE IF NOT EXISTS deposits(username text, deposits text, time text)""")
 
-
 con.commit()
+
 
 # Main Menu
 main_menu = Tk()
-main_menu.configure(bg='white')
 main_menu.title("Online Banking")
-logo = Image.open('sigma.png')
-logo = ImageTk.PhotoImage(logo)
-Label(main_menu, image=logo).grid(row=0,stick=N,pady=15)
+
 
 # Prints all_accounts to console. all_accounts can also be viewed in db browser.
-for row in cur.execute("SELECT * FROM all_accounts"):
-    print(row)
+# for row in cur.execute("SELECT * FROM all_accounts"):
+    # print(row)
+
 
 def update_deposit():
-    global user_info
+    """Updates deposits table and all_accounts table with the proper information upon a user submitted deposit."""
+
+    global user_info, deposit_menu
 
     temp_deposit = deposit_amount.get()
     deposit_time = datetime.now()
@@ -56,28 +55,29 @@ def update_deposit():
     cur.execute(f"SELECT balance FROM all_accounts WHERE username = '{temp_username2}'")
     balance_check = cur.fetchone()
 
-
     cur.execute(f'''INSERT OR IGNORE INTO deposits VALUES('{temp_username2}','{temp_deposit}','{deposit_time}') ''')
     con.commit()
 
     cur.execute(f'''SELECT deposits FROM deposits WHERE username = '{temp_username2}' ''')
     deposit_check = cur.fetchone()
 
+    # Add deposit amount to user balance in all_accounts
     updated_balance = balance_check[0] + temp_deposit
-    print(updated_balance)
+    #print(updated_balance)
 
+    # Set the balance for the corresponding username as the updated_balance
     cur.execute(f'''UPDATE all_accounts 
                     SET balance = '{updated_balance}'
                     WHERE username = '{temp_username2}' ''')
     con.commit()
 
-    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 10").grid(row=3, sticky=W, pady=4, padx=5)
-
-
-
+    # Label
+    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 14").grid(row=3, sticky=W, pady=4, padx=5)
 
 
 def update_withdraw():
+    """Updated withdrawals table and all_accounts table with the proper information upon a user submitted withdrawal."""
+
     global user_info
 
     temp_withdraw = withdraw_amount.get()
@@ -92,55 +92,71 @@ def update_withdraw():
     cur.execute(f'''SELECT withdrawn FROM withdrawals WHERE username = '{temp_username2}' ''')
     deposit_check = cur.fetchone()
 
+    # Subtract withdrawal amount from user balance in all_accounts
     updated_balance = balance_check[0] - temp_withdraw
-    print(updated_balance)
+    #print(updated_balance)
 
+    # Set the balance for the corresponding username as the updated_balance
     cur.execute(f'''UPDATE all_accounts 
                     SET balance = '{updated_balance}'
                     WHERE username = '{temp_username2}' ''')
     con.commit()
 
-    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 10").grid(row=3, sticky=W, pady=4,
-                                                                                              padx=5)
+    # Label
+    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 14").grid(row=3, sticky=W, pady=4, padx=5)
 
 
 def withdraw():
+    """Displays the withdrawal menu and allows user to enter and confirm a prospective withdrawal."""
+
     global withdraw_amount
+
     withdraw_amount = IntVar()
     withdraw_menu = Toplevel(main_menu)
 
-
-
-    Label(withdraw_menu, text="Withdraw Funds", font="times 13").grid(row=1, stick=N, pady=0, padx=10)
-    Label(withdraw_menu, text="How much would you like to withdraw?", font='times 9').grid(row=2, stick=N, pady=5)
+    # Labels
+    Label(withdraw_menu, text="Withdraw Funds", font="times 16").grid(row=1, stick=N, pady=0, padx=10)
+    Label(withdraw_menu, text="How much would you like to withdraw?", font='times 12').grid(row=2, stick=N, pady=5)
     Entry(withdraw_menu, textvariable=withdraw_amount).grid(row=3, column=0, sticky=N)
 
+    # Button
     Button(withdraw_menu, text="Confirm", command=update_withdraw, font="Times 12 bold").grid(row=5, sticky=SE)
 
+
 def deposit():
+    """Displays the deposit menu and allows user to enter and confirm a prospective deposit."""
+
     global deposit_amount
+
     deposit_amount = IntVar()
     deposit_menu = Toplevel(main_menu)
 
-    Label(deposit_menu, text="Deposit Funds", font="times 13").grid(row=1, stick=N, pady=0, padx=10)
-    Label(deposit_menu, text="How much would you like to deposit?", font='times 9').grid(row=2, stick=N, pady=5)
+    # Labels
+    Label(deposit_menu, text="Deposit Funds", font="times 16").grid(row=1, stick=N, pady=0, padx=10)
+    Label(deposit_menu, text="How much would you like to deposit?", font='times 12').grid(row=2, stick=N, pady=5)
     Entry(deposit_menu, textvariable=deposit_amount).grid(row=3, column=0, sticky=N)
 
+    # Button
     Button(deposit_menu, text="Confirm", command=update_deposit, font="Times 12 bold").grid(row=5, sticky=SE)
 
 
 
 
 def user_account():
+    """Allows user to view relevant account information upon successful login."""
+
     global balancecheck, display_bal, user_info
+
     user_info = Toplevel(main_menu)
-    Label(user_info, text="Account Information", font="times 13").grid(row=1, stick=N, pady=0, padx=10)
+
+    # Label
+    Label(user_info, text="Account Information", font="times 16").grid(row=1, stick=N, pady=0, padx=10)
 
     # display name to user
     cur.execute(f"SELECT name FROM all_accounts WHERE username = '{temp_username2}'")
     namecheck = cur.fetchone()
     if namecheck:
-        Label(user_info, text=f"Name: {namecheck[0]}", font="times 10").grid(row=2, sticky=W, pady=4, padx=5)
+        Label(user_info, text=f"Name: {namecheck[0]}", font="times 14").grid(row=2, sticky=W, pady=4, padx=5)
     else:
         print("error.")
 
@@ -148,7 +164,7 @@ def user_account():
     cur.execute(f"SELECT balance FROM all_accounts WHERE username = '{temp_username2}'")
     balancecheck = cur.fetchone()
     if balancecheck:
-        display_bal = Label(user_info, text=f"Balance: ${balancecheck[0]}", font="times 10").grid(row=3, sticky=W, pady=4, padx=5)
+        display_bal = Label(user_info, text=f"Balance: ${balancecheck[0]}", font="times 14").grid(row=3, sticky=W, pady=4, padx=5)
     else:
         print("error.")
 
@@ -216,7 +232,7 @@ def finish_reg():
 
 
 def register():
-    """Allows a user to submit account information"""
+    """Allows a user to submit account information."""
 
     global user_name, user_username, user_password
     global user_age, user_gender, notif
@@ -232,28 +248,31 @@ def register():
     register_menu.title("Register")
 
     # Labels
-    Label(register_menu, text="Create your new account", font="times 13").grid(row=0, sticky=NW, pady=10, padx=30)
-    Label(register_menu, text="Name", font="times 9 ").grid(row=2, sticky=W)
-    Label(register_menu, text="Username", font="times 9").grid(row=3, sticky=W)
-    Label(register_menu, text="Password", font="times 9 ").grid(row=4, sticky=W)
-    Label(register_menu, text="Age", font="times 9").grid(row=5, sticky=W)
-    Label(register_menu, text="Gender", font="times 9").grid(row=6, sticky=W)
+    Label(register_menu, text="Create your new account", font="times 16").grid(row=0, sticky=NW, pady=10, padx=30)
+    Label(register_menu, text="Name", font="times 12 ").grid(row=2, sticky=W, padx=20)
+    Label(register_menu, text="Username", font="times 12").grid(row=3, sticky=W, padx=20)
+    Label(register_menu, text="Password", font="times 12 ").grid(row=4, sticky=W, padx=20)
+    Label(register_menu, text="Age", font="times 12").grid(row=5, sticky=W, padx=20)
+    Label(register_menu, text="Gender", font="times 12").grid(row=6, sticky=W, padx=20)
     notif = Label(register_menu, font="times 12")
     notif.grid(row=9, sticky=N, pady=10)
 
     # Entries
-    Entry(register_menu, textvariable=user_name).grid(row=2, column=0, sticky=N)
-    Entry(register_menu, textvariable=user_username).grid(row=3, column=0, sticky=N)
-    Entry(register_menu, textvariable=user_password, show="*").grid(row=4, column=0, sticky=N)
-    Entry(register_menu, textvariable=user_age).grid(row=5, column=0, sticky=N)
-    Entry(register_menu, textvariable=user_gender).grid(row=6, column=0, sticky=N)
+    Entry(register_menu, textvariable=user_name).grid(row=2, column=0, sticky=E)
+    Entry(register_menu, textvariable=user_username).grid(row=3, column=0, sticky=E)
+    Entry(register_menu, textvariable=user_password, show="*").grid(row=4, column=0, sticky=E)
+    Entry(register_menu, textvariable=user_age).grid(row=5, column=0, sticky=E)
+    Entry(register_menu, textvariable=user_gender).grid(row=6, column=0, sticky=E)
 
     # Buttons
-    Button(register_menu, text="Register", command=finish_reg, font="Times 12 bold").grid(row=8, sticky=N)
+    Button(register_menu, text="Register", command=finish_reg, font="Times 12").grid(row=8, sticky=N)
 
 
 def login():
+    """Allows a user to submit login information."""
+
     global user_name2, password2, notif, login_menu, login_button
+
     user_name2 = StringVar()
     password2 = StringVar()
 
@@ -262,31 +281,32 @@ def login():
     login_menu.title("Login")
 
     # Labels
-    Label(login_menu, text="Login to your account", font="Times 13").grid(row=0, sticky=NW, pady=10, padx=30)
-    Label(login_menu, text="Username", font="times 9").grid(row=3, sticky=W)
-    Label(login_menu, text="Password", font="times 9 ").grid(row=4, sticky=W)
+    Label(login_menu, text="Login to your account", font="Times 16").grid(row=1, sticky=NW, pady=10, padx=30)
+    Label(login_menu, text="Username", font="times 12").grid(row=3, sticky=W)
+    Label(login_menu, text="Password", font="times 12").grid(row=4, sticky=W)
     notif = Label(login_menu, font="times 12")
     notif.grid(row=9, sticky=N, pady=10)
 
     # Entries
-    Entry(login_menu, textvariable=user_name2).grid(row=3, column=0, sticky=N)
-    Entry(login_menu, textvariable=password2, show="*").grid(row=4, column=0, sticky=N)
+    Entry(login_menu, textvariable=user_name2, font="Times 12").grid(row=3, column=0, sticky=E)
+    Entry(login_menu, textvariable=password2, show="*", font="Times 12").grid(row=4, column=0, sticky=E)
 
     # Button
-    login_button = Button(login_menu, text="Login", command=finish_login, font="Times 12 bold").grid(row=8, sticky=N)
+    login_button = Button(login_menu, text="Login", command=finish_login, font="Times 12 ").grid(row=8, sticky=NS)
 
-
-# Screen widths for formatting
-# print(main_menu.winfo_screenwidth())
-# print(main_menu.winfo_screenwidth())
 
 
 # Main Menu Buttons
-create_account_button = Button(main_menu, text="Create Account", font=("Times 10"), activeforeground="royal blue",
+create_account_button = Button(main_menu, text="Create Account", font=("Times 15"), activeforeground="royal blue",
                                width=20, command=register).grid(row=1, sticky=N, pady=10)
-
-login_button = Button(main_menu, text="Login", font=("Times 10 "), command=login, width=20).grid(row=2, sticky=N,
+login_button = Button(main_menu, text="Login", font=("Times 15 "), command=login, width=20).grid(row=2, sticky=N,
                                                                                                  pady=10)
+
 
 main_menu.mainloop()
 con.close()
+
+
+# Screen widths for formatting GUI
+# print(main_menu.winfo_screenwidth())
+# print(main_menu.winfo_screenwidth())
