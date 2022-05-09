@@ -2,11 +2,10 @@ import sqlite3
 from tkinter import *
 from datetime import datetime
 
-
 # |-------------------------------------------------------------------------------------| #
 # |  This program replicates a bank account application.                                | #
 # |  It allows a user to create an account and login.                                   | #
-# |  Upon login, the user can view credentials and balance.                             | #
+# |  Upon login, the user can view credentials, balance, and account history.           | #
 # |  The user can also update the balance by either withdrawing or depositing.          | #
 # |  This is accomplished using a SQL database, to store user credentials.              | #
 # |  The application visuals are displayed to the user through the use of tkinter GUI.  | #
@@ -21,11 +20,11 @@ cur = con.cursor()
 # creates all_accounts table if it does not already exist.
 # username is denoted as the PRIMARY KEY
 cur.execute('''CREATE TABLE IF NOT EXISTS all_accounts(username text PRIMARY KEY, name text, password text, 
-            balance real, gender text, birthyear text)''')
+            balance real, gender text, age real)''')
 
 # sample insertion of user data
-cur.execute('''INSERT OR IGNORE INTO all_accounts VALUES
-            ('brianmickey', 'Brian McMillan', 'coding', '10000', 'Male', '2000')''')
+# cur.execute('''INSERT OR IGNORE INTO all_accounts VALUES
+           # ('brianmickey', 'Brian McMillan', 'coding', '10000', 'Male', '2000')''')
 
 # creates all_withdrawals and all_deposits if they do not already exist.
 cur.execute("""CREATE TABLE IF NOT EXISTS withdrawals(username text, withdrawn text, time text)""")
@@ -39,9 +38,48 @@ main_menu = Tk()
 main_menu.title("Online Banking")
 
 
-# Prints all_accounts to console. all_accounts can also be viewed in db browser.
-# for row in cur.execute("SELECT * FROM all_accounts"):
-    # print(row)
+def view_withdrawal():
+    """Displays all previous withdrawals to user. Includes amount and time of transaction."""
+
+    withdrawal_view = Toplevel(main_menu)
+
+    # for each iteration through db-withdrawals, append amount,time.
+    str1 = ""
+    for row in cur.execute(f"SELECT * FROM withdrawals where username = '{temp_username2}'"):
+        str1 += "\n" + "$" + row[1] + "\t" + "|" + "\t" + row[2] + '\n' + "____________________________________________________"
+
+    # Labels
+    Label(withdrawal_view, text="Withdrawals", font="time 15").grid(row=1, sticky=N)
+    Label(withdrawal_view, text="AMOUNT", font="time 12").grid(row=2, stick=W)
+    Label(withdrawal_view, text="TIME", font="time 12").grid(row=2, stick=E)
+    Label(withdrawal_view, text=str1, font="times 10").grid(row=3, sticky=W)
+
+
+def view_deposit():
+    """Displays all previous deposits to user. Includes amount and time of transaction."""
+
+    deposit_view = Toplevel(main_menu)
+
+    # for each iteration through db-deposits, append amount,time.
+    str1 = ""
+    for row in cur.execute(f"SELECT * FROM deposits where username = '{temp_username2}'"):
+        str1 += "\n" + "$" + row[1] + "\t" + "|" + "\t" + row[2] + '\n' + "____________________________________________________"
+
+    # Labels
+    Label(deposit_view, text="Deposits", font="time 15").grid(row=1, sticky=N)
+    Label(deposit_view, text="AMOUNT", font="time 12").grid(row=2, stick=W)
+    Label(deposit_view, text="TIME", font="time 12").grid(row=2, stick=E)
+    Label(deposit_view, text=str1, font="times 10").grid(row=3, sticky=W)
+
+
+def view_transactions():
+    """Parent menu to view_deposit and view_withdrawals. Displays view deposit and view withdrawal buttons."""
+    transaction_menu = Toplevel(main_menu)
+
+    Label(transaction_menu, text="Which transactions would you like to view?", font="time 12").grid(row=1, sticky=N)
+
+    Button(transaction_menu, text="Deposits", command=view_deposit, font="Times 12 bold").grid(row=5, sticky=SE)
+    Button(transaction_menu, text="Withdrawals", command=view_withdrawal, font="Times 12 bold").grid(row=5, sticky=SW)
 
 
 def update_deposit():
@@ -51,6 +89,9 @@ def update_deposit():
 
     temp_deposit = deposit_amount.get()
     deposit_time = datetime.now()
+
+    # format time to day-month-year at hour:minutes
+    deposit_time = deposit_time.strftime("%d-%m-%Y @ %H:%M")
 
     cur.execute(f"SELECT balance FROM all_accounts WHERE username = '{temp_username2}'")
     balance_check = cur.fetchone()
@@ -71,8 +112,11 @@ def update_deposit():
                     WHERE username = '{temp_username2}' ''')
     con.commit()
 
+    format_balance = "{:,.2f}".format(updated_balance)
+    updated_balance = format_balance
+
     # Label
-    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 14").grid(row=3, sticky=W, pady=4, padx=5)
+    Label(user_info, text=f"Balance: ${updated_balance}", font="times 15").grid(row=3, sticky=W, pady=4, padx=5)
 
 
 def update_withdraw():
@@ -81,12 +125,14 @@ def update_withdraw():
     global user_info
 
     temp_withdraw = withdraw_amount.get()
+
     deposit_time = datetime.now()
+    deposit_time = deposit_time.strftime("%d-%m-%Y @ %H:%M")
 
     cur.execute(f"SELECT balance FROM all_accounts WHERE username = '{temp_username2}'")
     balance_check = cur.fetchone()
 
-    cur.execute(f'''INSERT OR IGNORE INTO deposits VALUES('{temp_username2}','{temp_withdraw}','{deposit_time}') ''')
+    cur.execute(f'''INSERT OR IGNORE INTO withdrawals VALUES('{temp_username2}','{temp_withdraw}','{deposit_time}') ''')
     con.commit()
 
     cur.execute(f'''SELECT withdrawn FROM withdrawals WHERE username = '{temp_username2}' ''')
@@ -97,13 +143,16 @@ def update_withdraw():
     #print(updated_balance)
 
     # Set the balance for the corresponding username as the updated_balance
-    cur.execute(f'''UPDATE all_accounts 
+    cur.execute(f'''UPDATE all_accounts
                     SET balance = '{updated_balance}'
                     WHERE username = '{temp_username2}' ''')
     con.commit()
 
+    format_balance = "{:,.2f}".format(updated_balance)
+    updated_balance = format_balance
+
     # Label
-    display_bal = Label(user_info, text=f"Balance: ${updated_balance}", font="times 14").grid(row=3, sticky=W, pady=4, padx=5)
+    Label(user_info, text=f"Balance: ${updated_balance}", font="times 15").grid(row=3, sticky=W, pady=4, padx=5)
 
 
 def withdraw():
@@ -117,6 +166,9 @@ def withdraw():
     # Labels
     Label(withdraw_menu, text="Withdraw Funds", font="times 16").grid(row=1, stick=N, pady=0, padx=10)
     Label(withdraw_menu, text="How much would you like to withdraw?", font='times 12').grid(row=2, stick=N, pady=5)
+    Label(withdraw_menu, text="$", font='times 12').grid(row=3, stick=W)
+
+    # Entry
     Entry(withdraw_menu, textvariable=withdraw_amount).grid(row=3, column=0, sticky=N)
 
     # Button
@@ -134,11 +186,13 @@ def deposit():
     # Labels
     Label(deposit_menu, text="Deposit Funds", font="times 16").grid(row=1, stick=N, pady=0, padx=10)
     Label(deposit_menu, text="How much would you like to deposit?", font='times 12').grid(row=2, stick=N, pady=5)
+    Label(deposit_menu, text="$").grid(row=3, column=0, sticky=W)
+
+    # Entry
     Entry(deposit_menu, textvariable=deposit_amount).grid(row=3, column=0, sticky=N)
 
     # Button
     Button(deposit_menu, text="Confirm", command=update_deposit, font="Times 12 bold").grid(row=5, sticky=SE)
-
 
 
 
@@ -170,10 +224,11 @@ def user_account():
 
     # Buttons
     # Withdraw
-    Button(user_info, text="Withdraw", command=withdraw, font="Times 12 bold").grid(row=5, sticky=SW)
+    Button(user_info, text="Withdraw", command=withdraw, font="Times 9 bold").grid(row=5, sticky=SW)
     # Deposit
-    Button(user_info, text="Deposit", command=deposit, font="Times 12 bold").grid(row=5, sticky=SE)
-
+    Button(user_info, text="Deposit", command=deposit, font="Times 9 bold").grid(row=5, sticky=N)
+    # view transactions
+    Button(user_info, text="History", command=view_transactions, font = "Times 9 bold").grid(row=5, stick=SE)
 
 
 def finish_login():
